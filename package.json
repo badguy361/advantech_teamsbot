@@ -1,0 +1,21 @@
+{
+  "name": "scm_teamsbot",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0",
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@azure/identity": "^4.7.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "body-parser": "^1.20.3",
+    "botbuilder": "^4.23.2",
+    "dotenv": "^16.4.7",
+    "restify": "^11.1.0"
+  }
+}
