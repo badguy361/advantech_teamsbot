@@ -15,33 +15,33 @@ const TEST_API_BASE_ENDPOINT = process.env.TEST_API_BASE_ENDPOINT;
 const SCM_ASSISTANT_ID = process.env.AZURE_ASSISTANT_THREAD_ID;
 const TEST_THREAD_ID = process.env.TEST_THREAD_ID;
 
-// const agent = new https.Agent({
-//     rejectUnauthorized: false
+const agent = new https.Agent({
+    rejectUnauthorized: false
+});
+
+// // 1. 讀取 CA 憑證檔案
+// const caCertPath = 'pem/scm_cert.pem'; // 將這裡替換為你的 CA 憑證檔案路徑
+// const gdig2Path = 'pem/gdig2.crt.pem'; // 將這裡替換為你的 CA 憑證檔案路徑
+// let caCert = null;
+// let gdig2 = null;
+
+// try {
+//     caCert = fs.readFileSync(caCertPath);
+//     gdig2 = fs.readFileSync(gdig2Path);
+// } catch (error) {
+//     console.error(`無法讀取 CA 憑證檔案: ${caCertPath}`, error);
+//     // 處理無法讀取憑證的情況，例如拋出錯誤或使用其他預設行為
+//     throw error; // 拋出錯誤，讓程式停止執行，避免使用未驗證的憑證
+// }
+// const httpsAgent = new https.Agent({
+//     ca: [
+//         gdig2,
+//         caCert
+//     ] // 將 CA 憑證添加到選項中
 // });
-
-// 1. 讀取 CA 憑證檔案
-const caCertPath = 'pem/scm_cert.pem'; // 將這裡替換為你的 CA 憑證檔案路徑
-const gdig2Path = 'pem/gdig2.crt.pem'; // 將這裡替換為你的 CA 憑證檔案路徑
-let caCert = null;
-let gdig2 = null;
-
-try {
-    caCert = fs.readFileSync(caCertPath);
-    gdig2 = fs.readFileSync(gdig2Path);
-} catch (error) {
-    console.error(`無法讀取 CA 憑證檔案: ${caCertPath}`, error);
-    // 處理無法讀取憑證的情況，例如拋出錯誤或使用其他預設行為
-    throw error; // 拋出錯誤，讓程式停止執行，避免使用未驗證的憑證
-}
-const httpsAgent = new https.Agent({
-    ca: [
-        gdig2,
-        caCert
-    ] // 將 CA 憑證添加到選項中
-});
-const instance = axios.create({
-    httpsAgent: httpsAgent
-});
+// const instance = axios.create({
+//     httpsAgent: httpsAgent
+// });
 
 let botFrameworkAuthentication;
 let MicrosoftAppId;
@@ -168,7 +168,7 @@ class TeamsBot extends ActivityHandler {
                     }, 3000);
 
                     // 1. Create or get thread
-                    const threadResponse = await instance({
+                    const threadResponse = await axios({
                         method: 'POST',
                         url: `${SCM_API_BASE_ENDPOINT}/v2/threads`,
                         headers: {
@@ -184,7 +184,7 @@ class TeamsBot extends ActivityHandler {
                                 // }
                             ]
                         },
-                        // httpsAgent: agent
+                        httpsAgent: agent
                     });
                     
                     if (threadResponse.status !== 200) {
@@ -196,7 +196,7 @@ class TeamsBot extends ActivityHandler {
 
                     // 2. Send user message in thread
                     const userMessage = context.activity.text;
-                    const messageResponse = await instance({
+                    const messageResponse = await axios({
                         method: 'POST',
                         url: `${SCM_API_BASE_ENDPOINT}/v2/threads/${threadId}/messages`,
                         headers: {
@@ -208,14 +208,14 @@ class TeamsBot extends ActivityHandler {
                             message_role: 'user',
                             auth_role: 'Default'
                         },
-                        // httpsAgent: agent
+                        httpsAgent: agent
                     });
                     
                     if (messageResponse.status !== 200) {
                         throw new Error(`發送消息失敗: ${messageResponse.statusText}`);
                     }
                     // 3. Create run
-                    const runResponse = await instance({
+                    const runResponse = await axios({
                         method: 'post',
                         url: `${SCM_API_BASE_ENDPOINT}/v2/threads/${threadId}/runs`,
                         headers: {
@@ -227,7 +227,7 @@ class TeamsBot extends ActivityHandler {
                             stream: true
                         },
                         responseType: 'stream',
-                        // httpsAgent: agent
+                        httpsAgent: agent
                     });
                     
                     if (runResponse.status !== 200) {
