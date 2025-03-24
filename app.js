@@ -1,10 +1,9 @@
 const { CloudAdapter, ConfigurationBotFrameworkAuthentication, ActivityHandler, TurnContext, ActivityTypes, CardFactory } = require('botbuilder');
+const { CosmosClient } = require("@azure/cosmos");
 const restify = require('restify');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const https = require('https');
-const fs = require('fs');
 
 dotenv.config();
 const PORT = process.env.PORT || 3978;
@@ -15,34 +14,7 @@ const TEST_API_BASE_ENDPOINT = process.env.TEST_API_BASE_ENDPOINT;
 const SCM_ASSISTANT_ID = process.env.AZURE_ASSISTANT_THREAD_ID;
 const TEST_THREAD_ID = process.env.TEST_THREAD_ID;
 
-const agent = new https.Agent({
-    rejectUnauthorized: false
-});
-
-// // 1. 讀取 CA 憑證檔案
-// const caCertPath = 'pem/scm_cert.pem'; // 將這裡替換為你的 CA 憑證檔案路徑
-// const gdig2Path = 'pem/gdig2.crt.pem'; // 將這裡替換為你的 CA 憑證檔案路徑
-// let caCert = null;
-// let gdig2 = null;
-
-// try {
-//     caCert = fs.readFileSync(caCertPath);
-//     gdig2 = fs.readFileSync(gdig2Path);
-// } catch (error) {
-//     console.error(`無法讀取 CA 憑證檔案: ${caCertPath}`, error);
-//     // 處理無法讀取憑證的情況，例如拋出錯誤或使用其他預設行為
-//     throw error; // 拋出錯誤，讓程式停止執行，避免使用未驗證的憑證
-// }
-// const httpsAgent = new https.Agent({
-//     ca: [
-//         gdig2,
-//         caCert
-//     ] // 將 CA 憑證添加到選項中
-// });
-// const instance = axios.create({
-//     httpsAgent: httpsAgent
-// });
-
+// setup bot framework authentication
 let botFrameworkAuthentication;
 let MicrosoftAppId;
 let MicrosoftAppPassword;
@@ -76,6 +48,13 @@ if (ENVIRONMENT === 'production') {
 }
 const adapter = new CloudAdapter(botFrameworkAuthentication);
 
+// setup Cosmos DB connection
+const cosmosDBEndpoint = process.env.DB_ENDPOINT;
+const cosmosDBKey = process.env.DB_KEY;
+const cosmosDBDatabaseId = process.env.DB_DATABASE;
+const cosmosDBContainerId = process.env.DB_CONTAINER;
+const DBClient = new CosmosClient({ endpoint: cosmosDBEndpoint, key: cosmosDBKey });
+
 // Error handling
 adapter.onTurnError = async (context, error) => {
     console.error(`\n [onTurnError] Unhandled error: ${error.message}\n${error.stack}`);
@@ -99,43 +78,49 @@ class TeamsBot extends ActivityHandler {
         // Process message events
         this.onMessage(async (context, next) => {
             const text = context.activity.text;
-            if (text === 'register') {
+            if (text === 'subscribe') {
                 const card = {
                     type: 'AdaptiveCard',
                     version: '1.4',
                     body: [
                         {
-                            type: 'TextBlock',
-                            text: '請輸入您的名字',
-                            weight: 'Bolder',
-                            size: 'Medium'
+                            type: "TextBlock",
+                            text: "SCM Agent provide following functions:",
+                            size: "Large",
+                            weight: "Bolder"
                         },
                         {
-                            type: 'Input.Text',
-                            id: 'userInput',
-                            placeholder: '輸入你的名字'
-                        },
-                        {
-                            type: 'Input.Text',
-                            id: 'userEmail',
-                            placeholder: '輸入您的 Email',
-                            style: 'email'
+                            type: "TextBlock",
+                            text: "Please select one option.",
+                            wrap: true
                         }
                     ],
                     actions: [
                         {
-                            type: 'Action.Submit',
-                            title: '送出',
-                            data: { action: 'submitName' }
+                            type: "Action.Submit",
+                            title: "basic SCM look up",
+                            data: {
+                                action: "basic"
+                            }
+                        },
+                        {
+                            type: "Action.Submit",
+                            title: "notify",
+                            data: {
+                                action: "notify"
+                            }
                         }
                     ]
                 };
                 await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-            } else if (context.activity.value && context.activity.value.action === 'submitName') {
-                const userName = context.activity.value.userInput;
-                await context.sendActivity(`你輸入的名字是：${userName}`);
+            } else if (context.activity.value && context.activity.value.action === 'notify') {
+                const userName = context.activity.from.name;
+                const userId = context.activity.from.id;
                 const conversationReference = TurnContext.getConversationReference(context.activity);
-                this.conversationReferences[context.activity.from.id] = conversationReference;
+                await saveUserToDB(userName, userId, conversationReference);
+                await context.sendActivity(`HI, ${userName}, subscribe notify successfully!`);
+            } else if (context.activity.value && context.activity.value.action === 'basic') {
+                await context.sendActivity(`HI, ${userName}, subscribe basic successfully!`);
             } else if (text === 'card') {
                 await context.sendActivity({
                     text: "請選擇一個選項",
@@ -152,8 +137,6 @@ class TeamsBot extends ActivityHandler {
                 let typingInterval;
                 try {
                     // Send typing animation immediately
-                    // const userName = context.activity.from.name;
-                    // await context.sendActivity(`HI, ${userName}`);
                     await context.sendActivity({type: ActivityTypes.Typing});
 
                     // Save conversation reference
@@ -177,14 +160,8 @@ class TeamsBot extends ActivityHandler {
                         },
                         data: {
                             "thread_id": "thread_123",
-                            "messages": [
-                                // {
-                                //     "content": "You will add the emoji end of the response.",
-                                //     "role": "user"
-                                // }
-                            ]
-                        },
-                        httpsAgent: agent
+                            "messages": []
+                        }
                     });
                     
                     if (threadResponse.status !== 200) {
@@ -196,6 +173,7 @@ class TeamsBot extends ActivityHandler {
 
                     // 2. Send user message in thread
                     const userMessage = context.activity.text;
+                    // TODO process auth_role
                     const messageResponse = await axios({
                         method: 'POST',
                         url: `${SCM_API_BASE_ENDPOINT}/v2/threads/${threadId}/messages`,
@@ -207,8 +185,7 @@ class TeamsBot extends ActivityHandler {
                             content: userMessage,
                             message_role: 'user',
                             auth_role: 'Default'
-                        },
-                        httpsAgent: agent
+                        }
                     });
                     
                     if (messageResponse.status !== 200) {
@@ -226,8 +203,7 @@ class TeamsBot extends ActivityHandler {
                             assistant_id: SCM_ASSISTANT_ID,
                             stream: true
                         },
-                        responseType: 'stream',
-                        httpsAgent: agent
+                        responseType: 'stream'
                     });
                     
                     if (runResponse.status !== 200) {
@@ -293,15 +269,10 @@ class TeamsBot extends ActivityHandler {
 
         // Process member added event
         this.onMembersAdded(async (context, next) => {
-            // console.log('Members Added:', context.activity);
             const membersAdded = context.activity.membersAdded;
             for (let member of membersAdded) {
                 if (member.id !== context.activity.recipient.id) {
-                    await context.sendActivity(`歡迎加入 Teams Bot！`);
-                    
-                    // Save conversation reference for new member
-                    const ref = TurnContext.getConversationReference(context.activity);
-                    this.conversationReferences[member.id] = ref;
+                    await context.sendActivity(`Welcome to SCM Agent！`);
                     break;
                 }
             }
@@ -311,19 +282,86 @@ class TeamsBot extends ActivityHandler {
 }
 
 // Proactive message function
-async function sendProactiveMessage(adapter, conversationReferences, MicrosoftAppId) {
-    for (const userId in conversationReferences) {
-        console.log('Send to:', userId);
-        console.log('conversationReferences', conversationReferences);
-        const ref = conversationReferences[userId];
-        console.log('ref', ref);
-        await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
-            await turnContext.sendActivity('這是一條主動通知訊息！');
-        });
+async function sendProactiveMessage(adapter, MicrosoftAppId, userName, message) {
+    const users = await getConversationReferencesFromDB(userName);
+    for (const user of users) {
+        const ref = user.conversationReference;
+        try {
+            await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
+                await turnContext.sendActivity(message);
+            });
+            console.log('成功發送通知給用戶:', user.name);
+        } catch (error) {
+            console.error(`發送通知給用戶 ${user.name} 時發生錯誤:`, error);
+            continue;
+        }
     }
-    console.log("-----------------------------")
 }
 
+// Get conversation references from DB
+async function getConversationReferencesFromDB(userNames) {
+    try {
+        const database = DBClient.database(cosmosDBDatabaseId);
+        const container = database.container(cosmosDBContainerId);
+
+        // ensure userNames is an array
+        if (!Array.isArray(userNames)) {
+            userNames = [userNames];
+        }
+
+        if (userNames.length === 0) {
+            return [];
+        }
+
+        // build IN clause and corresponding parameters
+        const parameterNames = userNames.map((_, index) => `@userName${index}`);
+        const inClause = parameterNames.join(", ");
+
+        const querySpec = {
+            query: `SELECT * FROM c WHERE c.name IN (${inClause})`,
+            parameters: userNames.map((name, index) => ({
+                name: `@userName${index}`,
+                value: name
+            }))
+        };
+
+        const { resources: users } = await container.items.query(querySpec).fetchAll();
+        console.log("users", users);
+        return users.map(user => ({
+            userId: user.id,
+            conversationReference: user.conversationReference
+        }));
+    } catch (error) {
+        console.error("從資料庫獲取用戶資訊時發生錯誤:", error);
+        throw error;
+    }
+}
+
+// Save user to DB
+async function saveUserToDB(userName, userId, conversationReference, subscription) {
+    try {
+        const database = DBClient.database(cosmosDBDatabaseId);
+        const container = database.container(cosmosDBContainerId);
+
+        const user = {
+            id: userId,
+            name: userName,
+            subscription: subscription,
+            conversationReference: conversationReference,
+            registeredDate: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        };
+
+        const { resource: upsertedItem } = await container.items.upsert(user);
+        console.log(`已儲存用戶資料: ${upsertedItem.id}`);
+        return upsertedItem;
+
+
+    } catch (error) {
+        console.error("儲存用戶資料時發生錯誤:", error);
+        throw error;
+    }
+}
 // Create bot instance
 const bot = new TeamsBot(adapter);
 
@@ -334,7 +372,9 @@ server.use(restify.plugins.bodyParser());
 // Add proactive notification endpoint
 server.post('/api/notify', async (req, res) => {
     const appId = req.headers['microsoft_app_id'];
-    await sendProactiveMessage(adapter, conversationReferences, appId);
+    const userName = req.body['user_name'];
+    const message = req.body['message'];
+    await sendProactiveMessage(adapter, appId, userName, message);
     res.send(200, '通知已發送');
 });
 
@@ -355,7 +395,6 @@ server.post('/api/messages', async (req, res) => {
     //     const token = authHeader.replace('Bearer ', '');
     //     try {
     //         const decodedToken = jwt.decode(token, { complete: true });
-    //         // console.log("Decoded token:", JSON.stringify(decodedToken, null, 2));
     //     } catch (err) {
     //         console.error("Error decoding token:", err);
     //     }
