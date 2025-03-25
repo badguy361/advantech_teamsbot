@@ -117,7 +117,7 @@ class TeamsBot extends ActivityHandler {
                 const userName = context.activity.from.name;
                 const userId = context.activity.from.id;
                 const conversationReference = TurnContext.getConversationReference(context.activity);
-                await saveUserToDB(userName, userId, conversationReference);
+                await saveUserToDB(userName, userId, conversationReference, 'notify');
                 await context.sendActivity(`HI, ${userName}, subscribe notify successfully!`);
             } else if (context.activity.value && context.activity.value.action === 'basic') {
                 await context.sendActivity(`HI, ${userName}, subscribe basic successfully!`);
@@ -282,83 +282,6 @@ class TeamsBot extends ActivityHandler {
     }
 }
 
-// Proactive message function
-async function sendProactiveMessage(adapter, MicrosoftAppId, config = {}) {
-    if (config.jobName === 'pullin') {
-        const jobId = config.jobId;
-        const userName = ['Joey.Chang']; // TODO: use config -> jobid to get userName from HANA
-        const message = 'pullin'; // TODO: usee config-> jobid get message from HANA
-        const users = await getConversationReferencesFromDB(userName);
-        for (const user of users) {
-            const ref = user.conversationReference;
-            try {
-                await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
-                    await turnContext.sendActivity(message);
-                });
-                console.log('成功發送通知給用戶:', user.name);
-            } catch (error) {
-                    console.error(`發送通知給用戶 ${user.name} 時發生錯誤:`, error);
-                continue;
-            }
-        }
-    } else if (config.jobName === 'customer') {
-        const userName = ['Joey.Chang']; // TODO: get userName(person in charge) from cosmos DB
-        const message = 'customer'; // TODO: get message through SIS from SQL server
-        const users = await getConversationReferencesFromDB(userName);
-        for (const user of users) {
-            const ref = user.conversationReference;
-            try {
-                await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
-                    await turnContext.sendActivity(message);
-                });
-                console.log('成功發送通知給用戶:', user.name);
-            } catch (error) {
-                console.error(`發送通知給用戶 ${user.name} 時發生錯誤:`, error);
-                continue;
-            }
-        }
-    }
-}
-
-// Get conversation references from DB
-async function getConversationReferencesFromDB(userNames) {
-    try {
-        const database = DBClient.database(cosmosDBDatabaseId);
-        const container = database.container(cosmosDBContainerId);
-
-        // ensure userNames is an array
-        if (!Array.isArray(userNames)) {
-            userNames = [userNames];
-        }
-
-        if (userNames.length === 0) {
-            return [];
-        }
-
-        // build IN clause and corresponding parameters
-        const parameterNames = userNames.map((_, index) => `@userName${index}`);
-        const inClause = parameterNames.join(", ");
-
-        const querySpec = {
-            query: `SELECT * FROM c WHERE c.name IN (${inClause})`,
-            parameters: userNames.map((name, index) => ({
-                name: `@userName${index}`,
-                value: name
-            }))
-        };
-
-        const { resources: users } = await container.items.query(querySpec).fetchAll();
-        console.log("users", users);
-        return users.map(user => ({
-            userId: user.id,
-            conversationReference: user.conversationReference
-        }));
-    } catch (error) {
-        console.error("從資料庫獲取用戶資訊時發生錯誤:", error);
-        throw error;
-    }
-}
-
 // Save user to DB
 async function saveUserToDB(userName, userId, conversationReference, subscription) {
     try {
@@ -399,18 +322,15 @@ function validateApiKey(req, res, next) {
 
 // CORS middleware
 function corsMiddleware(req, res, next) {
-    // 只允許特定來源訪問，例如您的前端域名
     res.header('Access-Control-Allow-Origin', 'xxx');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, SCM_API_KEY');
-
     if (req.method === 'OPTIONS') {
         res.send(200);
         return;
     }
     next();
 }
-
 
 // Create bot instance
 const bot = new TeamsBot(adapter);
@@ -422,18 +342,18 @@ server.use(corsMiddleware);
 
 // Add proactive pullin notification endpoint
 server.post('/api/notifications/pullin', validateApiKey, async (req, res) => {
-    const appId = req.headers['microsoft_app_id'];
     const jobId = req.body['job_id'];
     const config = { jobName: 'pullin', jobId: jobId };
-    await sendProactiveMessage(adapter, appId, config);
+    const NOTIFICATION_ENDPOINT = process.env.NOTIFICATION_ENDPOINT;
+    await axios.post(NOTIFICATION_ENDPOINT, config);
     res.send(200, '通知已發送');
 });
 
 // Add proactive customer notification endpoint
 server.post('/api/notifications/customer', validateApiKey, async (req, res) => {
-    const appId = req.headers['microsoft_app_id'];
     const config = { jobName: 'customer' };
-    await sendProactiveMessage(adapter, appId, config);
+    const NOTIFICATION_ENDPOINT = process.env.NOTIFICATION_ENDPOINT;
+    await axios.post(NOTIFICATION_ENDPOINT, config);
     res.send(200, '通知已發送');
 });
 
