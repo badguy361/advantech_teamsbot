@@ -173,7 +173,7 @@ class TeamsBot extends ActivityHandler {
 
                     // 2. Send user message in thread
                     const userMessage = context.activity.text;
-                    // TODO process auth_role
+                    const authRole = 'Default'; // TODO: process auth_role
                     const messageResponse = await axios({
                         method: 'POST',
                         url: `${SCM_API_BASE_ENDPOINT}/v2/threads/${threadId}/messages`,
@@ -184,7 +184,7 @@ class TeamsBot extends ActivityHandler {
                         data: {
                             content: userMessage,
                             message_role: 'user',
-                            auth_role: 'Default'
+                            auth_role: authRole
                         }
                     });
                     
@@ -211,6 +211,7 @@ class TeamsBot extends ActivityHandler {
                     }
 
                     // Process stream response
+                    // TODO: don't use stream response, use async await to get final message
                     let currentEvent = null;
                     runResponse.data.on('data', async (chunk) => {
                         const lines = chunk.toString().split('\n');
@@ -282,18 +283,39 @@ class TeamsBot extends ActivityHandler {
 }
 
 // Proactive message function
-async function sendProactiveMessage(adapter, MicrosoftAppId, userName, message) {
-    const users = await getConversationReferencesFromDB(userName);
-    for (const user of users) {
-        const ref = user.conversationReference;
-        try {
-            await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
-                await turnContext.sendActivity(message);
-            });
-            console.log('成功發送通知給用戶:', user.name);
-        } catch (error) {
-            console.error(`發送通知給用戶 ${user.name} 時發生錯誤:`, error);
-            continue;
+async function sendProactiveMessage(adapter, MicrosoftAppId, config = {}) {
+    if (config.jobName === 'pullin') {
+        const jobId = config.jobId;
+        const userName = ['Joey.Chang']; // TODO: use config -> jobid to get userName from HANA
+        const message = 'pullin'; // TODO: usee config-> jobid get message from HANA
+        const users = await getConversationReferencesFromDB(userName);
+        for (const user of users) {
+            const ref = user.conversationReference;
+            try {
+                await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
+                    await turnContext.sendActivity(message);
+                });
+                console.log('成功發送通知給用戶:', user.name);
+            } catch (error) {
+                    console.error(`發送通知給用戶 ${user.name} 時發生錯誤:`, error);
+                continue;
+            }
+        }
+    } else if (config.jobName === 'customer') {
+        const userName = ['Joey.Chang']; // TODO: get userName(person in charge) from cosmos DB
+        const message = 'customer'; // TODO: get message through SIS from SQL server
+        const users = await getConversationReferencesFromDB(userName);
+        for (const user of users) {
+            const ref = user.conversationReference;
+            try {
+                await adapter.continueConversationAsync(MicrosoftAppId, ref, async (turnContext) => {
+                    await turnContext.sendActivity(message);
+                });
+                console.log('成功發送通知給用戶:', user.name);
+            } catch (error) {
+                console.error(`發送通知給用戶 ${user.name} 時發生錯誤:`, error);
+                continue;
+            }
         }
     }
 }
@@ -362,29 +384,57 @@ async function saveUserToDB(userName, userId, conversationReference, subscriptio
         throw error;
     }
 }
+
+// API Key validation middleware
+function validateApiKey(req, res, next) {
+    const apiKey = req.headers['scm_api_key'];
+    const expectedApiKey = process.env.SCM_API_KEY;
+
+    if (!apiKey || apiKey !== expectedApiKey) {
+        res.send(401, { error: 'Unauthorized - Invalid API Key' });
+        return;
+    }
+    return next();
+}
+
+// CORS middleware
+function corsMiddleware(req, res, next) {
+    // 只允許特定來源訪問，例如您的前端域名
+    res.header('Access-Control-Allow-Origin', 'xxx');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, SCM_API_KEY');
+
+    if (req.method === 'OPTIONS') {
+        res.send(200);
+        return;
+    }
+    next();
+}
+
+
 // Create bot instance
 const bot = new TeamsBot(adapter);
 
 // Create server
 const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
+server.use(corsMiddleware);
 
-// Add proactive notification endpoint
-server.post('/api/notify', async (req, res) => {
+// Add proactive pullin notification endpoint
+server.post('/api/notifications/pullin', validateApiKey, async (req, res) => {
     const appId = req.headers['microsoft_app_id'];
-    const userName = req.body['user_name'];
-    const message = req.body['message'];
-    await sendProactiveMessage(adapter, appId, userName, message);
+    const jobId = req.body['job_id'];
+    const config = { jobName: 'pullin', jobId: jobId };
+    await sendProactiveMessage(adapter, appId, config);
     res.send(200, '通知已發送');
 });
 
-// Middleware to handle OPTIONS requests
-server.opts('/api/messages', function (req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    res.send(200);
-    next();
+// Add proactive customer notification endpoint
+server.post('/api/notifications/customer', validateApiKey, async (req, res) => {
+    const appId = req.headers['microsoft_app_id'];
+    const config = { jobName: 'customer' };
+    await sendProactiveMessage(adapter, appId, config);
+    res.send(200, '通知已發送');
 });
 
 // Configure server message endpoint
