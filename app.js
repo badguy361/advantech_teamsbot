@@ -340,20 +340,31 @@ const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
 server.use(corsMiddleware);
 
-// Add proactive pullin notification endpoint
-server.post('/api/notifications/pullin', validateApiKey, async (req, res) => {
-    const jobId = req.body['job_id'];
-    const config = { jobName: 'pullin', jobId: jobId };
-    const NOTIFICATION_ENDPOINT = process.env.NOTIFICATION_ENDPOINT;
-    await axios.post(NOTIFICATION_ENDPOINT, config);
-    res.send(200, '通知已發送');
-});
+// Add proactive notification endpoint
+server.post('/api/notifications', validateApiKey, async (req, res) => {
+    const job_name = req.body['job_name'];
+    let user_name;
+    let message;
+    if (job_name === 'pullin') {
+        const jobId = req.body['job_id'];
+        if (!jobId) {
+            res.send(400, 'job_id is required');
+            return;
+        }
+        user_name = ['Joey.Chang']; // TODO: use jobid to get userName from HANA
+        message = 'pullin'; // TODO: usee jobid get message from HANA
+    } else if (job_name === 'customer') {
+        user_name = ['Joey.Chang']; // TODO: get userName(person in charge) from cosmos DB
+        message = 'customer'; // TODO: get message through SIS from SQL server
+    }
 
-// Add proactive customer notification endpoint
-server.post('/api/notifications/customer', validateApiKey, async (req, res) => {
-    const config = { jobName: 'customer' };
+    if (!user_name || !message) {
+        res.send(400, 'user_name and message are not found');
+        return;
+    }
+
     const NOTIFICATION_ENDPOINT = process.env.NOTIFICATION_ENDPOINT;
-    await axios.post(NOTIFICATION_ENDPOINT, config);
+    await axios.post(NOTIFICATION_ENDPOINT, { user_name, message });
     res.send(200, '通知已發送');
 });
 
