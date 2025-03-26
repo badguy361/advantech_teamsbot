@@ -4,6 +4,8 @@ const restify = require('restify');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const subscriptionCard = require('./cards/subscription.json');
+const menuCard = require('./cards/menu.json');
 
 dotenv.config();
 const PORT = process.env.PORT || 3978;
@@ -30,8 +32,8 @@ if (ENVIRONMENT === 'production') {
         MicrosoftAppType: 'SingleTenant',
     });
 } else if (ENVIRONMENT === 'staging') {
-    MicrosoftAppId = process.env.MicrosoftAppId;
-    MicrosoftAppPassword = process.env.MicrosoftAppPassword;
+    MicrosoftAppId = process.env.TestMicrosoftAppId;
+    MicrosoftAppPassword = process.env.TestMicrosoftAppPassword;
     botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication({
         MicrosoftAppId: MicrosoftAppId,
         MicrosoftAppPassword: MicrosoftAppPassword,
@@ -78,61 +80,43 @@ class TeamsBot extends ActivityHandler {
         // Process message events
         this.onMessage(async (context, next) => {
             const text = context.activity.text;
-            if (text === 'subscribe') {
-                const card = {
-                    type: 'AdaptiveCard',
-                    version: '1.4',
-                    body: [
-                        {
-                            type: "TextBlock",
-                            text: "SCM Agent provide following functions:",
-                            size: "Large",
-                            weight: "Bolder"
-                        },
-                        {
-                            type: "TextBlock",
-                            text: "Please select one option.",
-                            wrap: true
-                        }
-                    ],
-                    actions: [
-                        {
-                            type: "Action.Submit",
-                            title: "basic SCM look up",
-                            data: {
-                                action: "basic"
-                            }
-                        },
-                        {
-                            type: "Action.Submit",
-                            title: "notify",
-                            data: {
-                                action: "notify"
-                            }
-                        }
-                    ]
-                };
-                await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-            } else if (context.activity.value && context.activity.value.action === 'notify') {
-                const userName = context.activity.from.name;
-                const userId = context.activity.from.id;
+            const userName = context.activity.from.name;
+            const userId = context.activity.from.id;
+            if (text === 'subscribe' || text === 'sub') {
+                await context.sendActivity({ attachments: [CardFactory.adaptiveCard(subscriptionCard)] });
+            } else if (context.activity.value && context.activity.value.action === 'confirmSubscription') {
                 const conversationReference = TurnContext.getConversationReference(context.activity);
-                await saveUserToDB(userName, userId, conversationReference, 'notify');
-                await context.sendActivity(`HI, ${userName}, subscribe notify successfully!`);
-            } else if (context.activity.value && context.activity.value.action === 'basic') {
-                await context.sendActivity(`HI, ${userName}, subscribe basic successfully!`);
-            } else if (text === 'card') {
-                await context.sendActivity({
-                    text: "請選擇一個選項",
-                    type: "message",
-                    attachments: [{
-                        contentType: "application/vnd.microsoft.card.hero",
-                        content: {
-                            title: "選項卡",
-                            buttons: [{ type: "imBack", title: "查詢料號窗口", value: "AIMB-505G2-00A1E的SCM窗口是誰" }]
-                        }
-                    }]
-                });
+                const selectedServices = [];
+
+                // Collect all selected services
+                if (context.activity.value.basic === 'true') {
+                    selectedServices.push('basic');
+                }
+                if (context.activity.value.pull_in === 'true') {
+                    selectedServices.push('pull_in');
+                }
+                if (context.activity.value.LTB_customer === 'true') {
+                    selectedServices.push('LTB_customer');
+                }
+
+                // Save all subscriptions
+                try {
+                    if (selectedServices.length > 0) {
+                        await saveUserSubscriptionsToDB(userName, userId, conversationReference, selectedServices);
+                        await context.sendActivity({
+                            text: `HI, ${userName}, successfully subscribed to: ${selectedServices.join(', ')}!`,
+                            importance: 'high'
+                        });
+                    } else {
+                        await context.sendActivity(`Please select at least one service.`);
+                    }
+                } catch (error) {
+                    console.error("儲存用戶資料時發生錯誤:", error);
+                    await context.sendActivity(`儲存用戶資料時發生錯誤。`);
+                    throw error;
+                }
+            } else if (text === 'menu') {
+                await context.sendActivity({ attachments: [CardFactory.adaptiveCard(menuCard)] });
             } else {
                 let typingInterval;
                 try {
@@ -271,6 +255,10 @@ class TeamsBot extends ActivityHandler {
         // Process member added event
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
+            const conversationReference = TurnContext.getConversationReference(context.activity);
+            const userName = context.activity.from.name;
+            const userId = context.activity.from.id;
+            await saveUserSubscriptionsToDB(userName, userId, conversationReference, ['basic']);
             for (let member of membersAdded) {
                 if (member.id !== context.activity.recipient.id) {
                     await context.sendActivity(`Welcome to SCM Agent！`);
@@ -283,7 +271,7 @@ class TeamsBot extends ActivityHandler {
 }
 
 // Save user to DB
-async function saveUserToDB(userName, userId, conversationReference, subscription) {
+async function saveUserSubscriptionsToDB(userName, userId, conversationReference, subscriptions) {
     try {
         const database = DBClient.database(cosmosDBDatabaseId);
         const container = database.container(cosmosDBContainerId);
@@ -291,7 +279,7 @@ async function saveUserToDB(userName, userId, conversationReference, subscriptio
         const user = {
             id: userId,
             name: userName,
-            subscription: subscription,
+            subscriptions: subscriptions,
             conversationReference: conversationReference,
             registeredDate: new Date().toISOString(),
             lastUpdated: new Date().toISOString()
