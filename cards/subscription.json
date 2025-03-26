@@ -1,0 +1,38 @@
+{
+    "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+    "type": "AdaptiveCard",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "請選擇您的訂閱方案/Please choose your subscribtions",
+            "weight": "Bolder",
+            "size": "Medium"
+        },
+        {
+            "type": "Input.Toggle",
+            "title": "Basic SCM bot",
+            "id": "basic",
+            "value": "true"
+        },
+        {
+            "type": "Input.Toggle",
+            "title": "Pull-in Agent",
+            "id": "pull_in"
+        },
+        {
+            "type": "Input.Toggle",
+            "title": "LTB customer Agent",
+            "id": "LTB_customer"
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "確認訂閱/confirme",
+            "data": {
+                "action": "confirmSubscription"
+            }
+        }
+    ]
+}

@@ -1,0 +1,28 @@
+{
+    "type": "AdaptiveCard",
+    "version": "1.4",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "選項卡",
+            "size": "Large",
+            "weight": "Bolder",
+            "wrap": true
+        },
+        {
+            "type": "TextBlock",
+            "text": "請選擇以下功能：",
+            "wrap": true
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "查詢料號窗口",
+            "data": {
+                "action": "query",
+                "query": "AIMB-505G2-00A1E的SCM窗口是誰"
+            }
+        }
+    ]
+}
