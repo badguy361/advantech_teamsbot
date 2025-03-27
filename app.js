@@ -87,7 +87,36 @@ class TeamsBot extends ActivityHandler {
             const userName = context.activity.from.name;
             const userId = context.activity.from.id;
             if (text === 'subscribe' || text === 'sub') {
-                await context.sendActivity({ attachments: [CardFactory.adaptiveCard(subscriptionCard)] });
+                try {
+                    const database = DBClient.database(cosmosDBDatabaseId);
+                    const container = database.container(cosmosDBContainerId);
+                    const { resource: user } = await container.item(userId).read();
+
+                    // Clone subscription card
+                    const customSubscriptionCard = JSON.parse(JSON.stringify(subscriptionCard));
+
+                    // If user exists and has subscription info, update the default value of each Toggle
+                    if (user && user.subscriptions) {
+                        customSubscriptionCard.body = customSubscriptionCard.body.map(item => {
+                            if (item.type === 'Input.Toggle') {
+                                return {
+                                    ...item,
+                                    value: user.subscriptions.includes(item.id).toString() // convert to string 'true' or 'false'
+                                };
+                            }
+                            return item;
+                        });
+                    }
+
+                    await context.sendActivity({ 
+                        attachments: [CardFactory.adaptiveCard(customSubscriptionCard)] 
+                    });
+                } catch (error) {
+                    console.error("獲取用戶訂閱資訊時發生錯誤:", error);
+                    await context.sendActivity({ 
+                        attachments: [CardFactory.adaptiveCard(subscriptionCard)] 
+                    });
+                }
             } else if (context.activity.value && context.activity.value.action === 'confirmSubscription') {
                 const conversationReference = TurnContext.getConversationReference(context.activity);
                 const selectedServices = [];
