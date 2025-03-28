@@ -148,14 +148,14 @@ class TeamsBot extends ActivityHandler {
                 const selectedServices = [];
 
                 // Collect all selected services
-                if (context.activity.value.basic === 'true') {
-                    selectedServices.push('basic');
+                if (context.activity.value.SCM_bot === 'true') {
+                    selectedServices.push('SCM bot');
                 }
                 if (context.activity.value.pull_in === 'true') {
-                    selectedServices.push('pull_in');
+                    selectedServices.push('Pull-in Agent');
                 }
                 if (context.activity.value.LTB_customer === 'true') {
-                    selectedServices.push('LTB_customer');
+                    selectedServices.push('LTB customer Agent');
                 }
 
                 // Save all subscriptions
@@ -177,7 +177,7 @@ class TeamsBot extends ActivityHandler {
             } else if (text === 'menu') {
                 await context.sendActivity({ attachments: [CardFactory.adaptiveCard(menuCard)] });
             } else {
-                if (user && user.subscriptions && user.subscriptions.includes('SCM_bot')) {
+                if (user && user.subscriptions && user.subscriptions.includes('SCM bot')) {
                     let typingInterval;
                     try {
                         // Send typing animation immediately
@@ -397,17 +397,17 @@ server.post('/api/notifications', validateApiKey, async (req, res) => {
     const jobName = req.body['job_name'];
     let userNames;
     let message;
-    if (jobName === 'pull_in') {
+    if (jobName === 'Pull-in Agent') {
         const jobId = req.body['job_id'];
         if (!jobId) {
             res.send(400, 'job_id is required');
             return;
         }
         userNames = ['Joey.Chang', 'Tina.Chen']; // TODO: use jobid to get userName from HANA
-        message = 'pull_in'; // TODO: usee jobid get message from HANA
-    } else if (jobName === 'LTB_customer') {
+        message = 'Pull-in Agent'; // TODO: usee jobid get message from HANA
+    } else if (jobName === 'LTB customer Agent') {
         userNames = ['Joey.Chang', 'Tina.Chen']; // TODO: get userName(person in charge) from cosmos DB
-        message = 'LTB_customer'; // TODO: get message through SIS from SQL server
+        message = 'LTB customer Agent'; // TODO: get message through SIS from SQL server
     }
 
     if (!userNames || !message) {
