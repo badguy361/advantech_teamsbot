@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const subscriptionCard = require('./cards/subscription.json');
 const menuCard = require('./cards/menu.json');
+const { SCMChatService } = require('./services/index');
 
 dotenv.config();
 const PORT = process.env.PORT || 3978;
@@ -61,6 +62,31 @@ const cosmosDBDatabaseId = process.env.DB_DATABASE;
 const cosmosDBContainerId = process.env.DB_CONTAINER;
 const DBClient = new CosmosClient({ endpoint: cosmosDBEndpoint, key: cosmosDBKey });
 
+const config = {
+    scm: {
+        SCM_API_KEY,
+        SCM_API_BASE_ENDPOINT,
+        TEST_API_BASE_ENDPOINT,
+        SCM_ASSISTANT_ID,
+        TEST_THREAD_ID,
+    },
+    microsoft: {
+        MicrosoftAppId,
+        MicrosoftAppPassword,
+        MicrosoftTenantId,
+        NOTIFICATION_ENDPOINT,
+    },
+    cosmosDB: {
+        cosmosDBEndpoint,
+        cosmosDBKey,
+        cosmosDBDatabaseId,
+        cosmosDBContainerId,
+    },
+    environment: {
+        ENVIRONMENT,
+        PORT,
+    }
+}   
 // Error handling
 adapter.onTurnError = async (context, error) => {
     console.error(`\n [onTurnError] Unhandled error: ${error.message}\n${error.stack}`);
@@ -86,11 +112,11 @@ class TeamsBot extends ActivityHandler {
             const text = context.activity.text;
             const userName = context.activity.from.name;
             const userId = context.activity.from.id;
+            const database = DBClient.database(cosmosDBDatabaseId);
+            const container = database.container(cosmosDBContainerId);
+            const { resource: user } = await container.item(userId).read();
             if (text === 'subscribe' || text === 'sub') {
                 try {
-                    const database = DBClient.database(cosmosDBDatabaseId);
-                    const container = database.container(cosmosDBContainerId);
-                    const { resource: user } = await container.item(userId).read();
 
                     // Clone subscription card
                     const customSubscriptionCard = JSON.parse(JSON.stringify(subscriptionCard));
@@ -151,135 +177,43 @@ class TeamsBot extends ActivityHandler {
             } else if (text === 'menu') {
                 await context.sendActivity({ attachments: [CardFactory.adaptiveCard(menuCard)] });
             } else {
-                let typingInterval;
-                try {
-                    // Send typing animation immediately
-                    await context.sendActivity({type: ActivityTypes.Typing});
+                if (user && user.subscriptions && user.subscriptions.includes('SCM_bot')) {
+                    let typingInterval;
+                    try {
+                        // Send typing animation immediately
+                        await context.sendActivity({type: ActivityTypes.Typing});
 
-                    // Save conversation reference
-                    const conversationReference = TurnContext.getConversationReference(context.activity);
-                    this.conversationReferences[context.activity.from.id] = conversationReference;
+                        // Save conversation reference
+                        const conversationReference = TurnContext.getConversationReference(context.activity);
+                        this.conversationReferences[context.activity.from.id] = conversationReference;
 
-                    // Send typing animation
-                    typingInterval = setInterval(async () => {
+                        // Send typing animation
+                        typingInterval = setInterval(async () => {
+                            await this.adapter.continueConversationAsync(MicrosoftAppId, conversationReference, async (turnContext) => {
+                                await turnContext.sendActivity({ type: ActivityTypes.Typing });
+                            });
+                        }, 3000);
+
+                        // process chat flow
+                        const scmChatService = new SCMChatService(config);
+                        const response = await scmChatService.handleChatMessage(context);
                         await this.adapter.continueConversationAsync(MicrosoftAppId, conversationReference, async (turnContext) => {
-                            await turnContext.sendActivity({ type: ActivityTypes.Typing });
+                            await turnContext.sendActivity(`${response}`);
                         });
-                    }, 3000);
 
-                    // 1. Create or get thread
-                    const threadResponse = await axios({
-                        method: 'POST',
-                        url: `${SCM_API_BASE_ENDPOINT}/v2/threads`,
-                        headers: {
-                            'SCM_API_KEY': SCM_API_KEY,
-                            'Content-Type': 'application/json'
-                        },
-                        data: {
-                            "thread_id": "thread_123",
-                            "messages": []
+                    } catch (error) {
+                        console.error('API 調用錯誤:', error);
+                        await context.sendActivity('處理您的請求時發生錯誤。');
+
+                    } finally {
+                        if (typingInterval) {
+                            clearInterval(typingInterval);
+                            typingInterval = null;
                         }
-                    });
-                    
-                    if (threadResponse.status !== 200) {
-                        throw new Error(`創建 thread 失敗: ${threadResponse.statusText}`);
                     }
-                    const threadData = threadResponse.data;
-                    const threadId = threadData.id;
-                    // const threadId = TEST_THREAD_ID;
-
-                    // 2. Send user message in thread
-                    const userMessage = context.activity.text;
-                    const authRole = 'Default'; // TODO: process auth_role
-                    const messageResponse = await axios({
-                        method: 'POST',
-                        url: `${SCM_API_BASE_ENDPOINT}/v2/threads/${threadId}/messages`,
-                        headers: {
-                            'SCM_API_KEY': SCM_API_KEY,
-                            'Content-Type': 'application/json'
-                        },
-                        data: {
-                            content: userMessage,
-                            message_role: 'user',
-                            auth_role: authRole
-                        }
-                    });
-                    
-                    if (messageResponse.status !== 200) {
-                        throw new Error(`發送消息失敗: ${messageResponse.statusText}`);
-                    }
-                    // 3. Create run
-                    const runResponse = await axios({
-                        method: 'post',
-                        url: `${SCM_API_BASE_ENDPOINT}/v2/threads/${threadId}/runs`,
-                        headers: {
-                            'SCM_API_KEY': `${SCM_API_KEY}`,
-                            'Content-Type': 'application/json',
-                        },
-                        data: {
-                            assistant_id: SCM_ASSISTANT_ID,
-                            stream: true
-                        },
-                        responseType: 'stream'
-                    });
-                    
-                    if (runResponse.status !== 200) {
-                        throw new Error(`創建 run 失敗: ${runResponse.statusText}`);
-                    }
-
-                    // Process stream response
-                    // TODO: don't use stream response, use async await to get final message
-                    let currentEvent = null;
-                    runResponse.data.on('data', async (chunk) => {
-                        const lines = chunk.toString().split('\n');
-                        for (const line of lines) {
-                            if (line.startsWith('event: ')) {
-                                currentEvent = line.replace('event: ', '').trim();
-                            } else if (line.startsWith('data: ')) {
-                                const dataStr = line.replace('data: ', '').trim();
-                                try {
-                                    // Process thread.message.completed event to get final message
-                                    if (currentEvent === 'thread.message.completed') {
-                                        const data = JSON.parse(dataStr);
-                                        const finalContent = data.content[0].text.value;
-                                        console.log("finalContent", finalContent);
-                                        // clear typing animation & send final message
-                                        clearInterval(typingInterval);
-                                        typingInterval = null;
-                                        await this.adapter.continueConversationAsync(MicrosoftAppId, conversationReference, async (turnContext) => {
-                                            await turnContext.sendActivity(`${finalContent}`);
-                                        });
-                                    }
-
-                                    // Process error event during stream process
-                                    if (currentEvent === 'error') {
-                                        console.error('Stream error from server:', dataStr);
-                                    }
-                                } catch (error) {
-                                    clearInterval(typingInterval);
-                                    typingInterval = null;
-                                    console.error(`Error parsing ${currentEvent} data:`, error);
-                                }
-                            }
-                        }
-                    });
-
-                    runResponse.data.on('end', async () => {
-                        console.log('Stream connection closed');
-                    });
-
-                } catch (error) {
-                    console.error('API 調用錯誤:', error);
-                    if (typingInterval) {
-                        clearInterval(typingInterval);
-                        typingInterval = null;
-                    }
-                    await context.sendActivity('處理您的請求時發生錯誤。');
-                } finally {
-                    if (typingInterval) {
-                        clearInterval(typingInterval);
-                        typingInterval = null;
-                    }
+                } else {
+                    await context.sendActivity('您尚未訂閱任何Bot服務，可透過關鍵字 subscribe 訂閱。/ \
+                        You have not subscribed to any Bot services, you can subscribe through the keyword subscribe.');
                 }
             }
             await next();
