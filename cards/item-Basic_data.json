@@ -1,0 +1,35 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "Basic data - 請選擇一個子項目：",
+            "wrap": true
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "Master data",
+            "data": {
+                "action": "master_data_form"
+            }
+        },
+        {
+            "type": "Action.Submit",
+            "title": "PM/SCM/Planner",
+            "data": {
+                "action": "pm_scm_planner_form"
+            }
+        },
+        {
+            "type": "Action.Submit",
+            "title": "HTS/COO/ECCN",
+            "data": {
+                "action": "hts_coo_eccn_form"
+            }
+        }
+    ]
+}

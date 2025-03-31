@@ -1,0 +1,32 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "Master data - 提問範例: 查詢AIMB-505G2-00A1E在TWH1的物料主檔資訊",
+            "wrap": true
+        },
+        {
+            "type": "Input.Text",
+            "id": "material",
+            "placeholder": "請輸入料號"
+        },
+        {
+            "type": "Input.Text",
+            "id": "plant",
+            "placeholder": "請輸入廠別"
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "送出",
+            "data": {
+                "action": "query",
+                "query": "AIMB-505G2-00A1E的SCM窗口是誰"
+            }
+        }
+    ]
+}

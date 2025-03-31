@@ -1,0 +1,42 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "請選擇一個類別：",
+            "wrap": true
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "Basic data",
+            "data": {
+                "action": "basic_data"
+            }
+        },
+        {
+            "type": "Action.Submit",
+            "title": "ATP info",
+            "data": {
+                "action": "atp_info"
+            }
+        },
+        {
+            "type": "Action.Submit",
+            "title": "SO gating item",
+            "data": {
+                "action": "so_gating_item"
+            }
+        },
+        {
+            "type": "Action.Submit",
+            "title": "Shipment Rate",
+            "data": {
+                "action": "shipment_rate"
+            }
+        }
+    ]
+}

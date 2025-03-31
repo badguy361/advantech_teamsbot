@@ -12,18 +12,18 @@
         {
             "type": "Input.Toggle",
             "title": "SCM bot",
-            "id": "SCM_bot",
+            "id": "SCM bot",
             "value": "true"
         },
         {
             "type": "Input.Toggle",
             "title": "Pull-in Agent",
-            "id": "pull_in"
+            "id": "Pull-in Agent"
         },
         {
             "type": "Input.Toggle",
             "title": "LTB customer Agent",
-            "id": "LTB_customer"
+            "id": "LTB customer Agent"
         }
     ],
     "actions": [
