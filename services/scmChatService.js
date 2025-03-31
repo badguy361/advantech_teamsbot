@@ -7,9 +7,9 @@ class SCMChatService {
         this.SCM_ASSISTANT_ID = config.scm.SCM_ASSISTANT_ID;
     }
 
-    async handleChatMessage(context) {
+    async handleChatMessage(text) {
         try {
-            const userMessage = context.activity.text;
+            const userMessage = text;
             const userAuthRole = 'Default'; // TODO: process auth_role
             const response = await this.processChatFlow(userMessage, userAuthRole);
             return response;
