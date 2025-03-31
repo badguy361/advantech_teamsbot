@@ -5,7 +5,11 @@ const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const subscriptionCard = require('./cards/subscription.json');
+const defaultMenuCard = require('./cards/default-menu.json');
 const menuCard = require('./cards/menu.json');
+const masterDataFormCard = require('./cards/form-Master_data.json');
+const itemATPInfoCard = require('./cards/item-ATP_info.json');
+const itemBasicDataCard = require('./cards/item-Basic_data.json');
 const { SCMChatService } = require('./services/index');
 
 dotenv.config();
@@ -109,7 +113,7 @@ class TeamsBot extends ActivityHandler {
 
         // Process message events
         this.onMessage(async (context, next) => {
-            const text = context.activity.text;
+            const text = context.activity.text || context.activity.value.query;
             const userName = context.activity.from.name;
             const userId = context.activity.from.id;
             const database = DBClient.database(cosmosDBDatabaseId);
@@ -117,7 +121,6 @@ class TeamsBot extends ActivityHandler {
             const { resource: user } = await container.item(userId).read();
             if (text === 'subscribe' || text === 'sub') {
                 try {
-
                     // Clone subscription card
                     const customSubscriptionCard = JSON.parse(JSON.stringify(subscriptionCard));
 
@@ -176,6 +179,39 @@ class TeamsBot extends ActivityHandler {
                 }
             } else if (text === 'menu') {
                 await context.sendActivity({ attachments: [CardFactory.adaptiveCard(menuCard)] });
+            } else if (context.activity.value && context.activity.value.action != 'query') {
+                const action = context.activity.value.action;
+        
+                switch (action) {
+                    case "basic_data":
+                        await context.sendActivity({ attachments: [CardFactory.adaptiveCard(itemBasicDataCard)] });
+                        break;
+
+                    case "atp_info":
+                        await context.sendActivity({ attachments: [CardFactory.adaptiveCard(itemATPInfoCard)] });
+                        break;
+
+                    case "so_gating_item":
+                    case "shipment_rate":
+                    case "master_data_form":
+                        await context.sendActivity({ attachments: [CardFactory.adaptiveCard(masterDataFormCard)] });
+                        break;
+                    case "pm_scm_planner_form":
+                    case "hts_coo_eccn_form":
+                    case "lt_atp_form":
+                    case "submit_master_data_form":
+                        const material = context.activity.value.material || "AIMB-505G2-00A1E";
+                        const plant = context.activity.value.plant || "TWH1";
+                        const source = context.activity.value.source;
+                        console.log("source", source);
+                        await context.sendActivity(`查詢${material}在${plant}的物料主檔資訊`);
+                        break;
+                    case "query":
+                        const query = context.activity.value.query;
+                        console.log("Query received:", query);
+                        context.activity.text = query;
+                        break;
+                }
             } else {
                 if (user && user.subscriptions && user.subscriptions.includes('SCM bot')) {
                     let typingInterval;
@@ -195,8 +231,9 @@ class TeamsBot extends ActivityHandler {
                         }, 3000);
 
                         // process chat flow
+                        console.log("question, ", text);
                         const scmChatService = new SCMChatService(config);
-                        const response = await scmChatService.handleChatMessage(context);
+                        const response = await scmChatService.handleChatMessage(text);
                         await this.adapter.continueConversationAsync(MicrosoftAppId, conversationReference, async (turnContext) => {
                             await turnContext.sendActivity(`${response}`);
                         });
