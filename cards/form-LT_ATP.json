@@ -47,10 +47,8 @@
         {
             "type": "Input.Text",
             "id": "quantity",
-            "isRequired": true,
             "value": "500",
-            "placeholder": "請輸入需求數量",
-            "errorMessage": "請輸入需求數量"
+            "placeholder": "請輸入需求數量"
         },
         {
             "type": "TextBlock",
@@ -61,7 +59,6 @@
             "type": "Input.Date",
             "id": "date",
             "isRequired": true,
-            "value": "2024-06-01",
             "placeholder": "請輸入需求日期",
             "errorMessage": "請輸入需求日期"
         }
