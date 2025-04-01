@@ -248,10 +248,12 @@ class TeamsBot extends ActivityHandler {
                                 plant = context.activity.value.plant;
                                 quantity = parseInt(context.activity.value.quantity,10);
                                 date = context.activity.value.date;
-                                if (quantity === null || quantity === undefined || quantity === "") {
-                                    query = `請幫我查詢${material}在${plant}的L/T,ATP，日期${date}`;
+                                if (material && plant && quantity && date) {
+                                    query = `顧客想在${date}訂購${material}廠別為${plant}，數量為${quantity}個,L/T和ATP的狀況如何?`;
+                                } else if (material) {
+                                    query = `請幫我查詢${material}的L/T,ATP`;
                                 } else {
-                                    query = `顧客想在${date}訂購${material}，數量為${quantity}個,L/T和ATP的狀況如何?`;
+                                    query = `請幫我查詢${material}在${plant}的L/T,ATP`;
                                 }
                                 break;
 
@@ -282,9 +284,14 @@ class TeamsBot extends ActivityHandler {
                         }
                         await context.sendActivity({text: query});
 
-                        setImmediate(async () => {
-                            await handleChatMessageWithTyping(userId, query, config, MicrosoftAppId, conversationReferences, adapter);
-                        });
+                        if (user && user.subscriptions && user.subscriptions.includes('SCM_bot')) {
+                            setImmediate(async () => { // new event loop avoid affection main thread
+                                await handleChatMessageWithTyping(userId, query, config, MicrosoftAppId, conversationReferences, adapter);
+                            });
+                        } else {
+                            await context.sendActivity('您尚未訂閱任何Bot服務，可透過關鍵字 subscribe 訂閱。/ \
+                                You have not subscribed to any Bot services, you can subscribe through the keyword subscribe.');
+                        }
                         break;
                 }
             } else {
