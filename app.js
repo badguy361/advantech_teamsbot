@@ -229,15 +229,15 @@ class TeamsBot extends ActivityHandler {
                             case "master_data_form":
                                 material = context.activity.value.material || "AIMB-505G2-00A1E";
                                 plant = context.activity.value.plant || "TWH1";
-                                query = `查詢${material}在${plant}的物料主檔資訊`;
+                                query = `請幫我查詢${material}在${plant}的物料主檔資訊`;
                                 break;
                             case "pm_scm_planner_form":
                                 material = context.activity.value.material || "AIMB-505G2-00A1E";
-                                query = `查詢${material}的PM、SCM、Planner`;
+                                query = `請幫我查詢${material}的PM、SCM、Planner`;
                                 break;
                             case "hts_coo_eccn_form":
                                 material = context.activity.value.material || "AIMB-505G2-00A1E";
-                                query = `查詢${material}的HTS、COO、ECCN`;
+                                query = `請幫我查詢${material}的HTS、COO、ECCN`;
                                 break;
                             case "lt_atp_form":
                                 material = context.activity.value.material || "AIMB-505G2-00A1E";
@@ -245,14 +245,14 @@ class TeamsBot extends ActivityHandler {
                                 quantity = context.activity.value.quantity;
                                 date = context.activity.value.date || new Date().toISOString().split('T')[0];
                                 if (!quantity) {
-                                    query = `查詢${material}在${plant}的L/T,ATP，日期${date}`;
+                                    query = `請幫我查詢${material}在${plant}的L/T,ATP，日期${date}`;
                                 } else {
                                     query = `顧客想在${date}訂購${material}，數量為${quantity}個,L/T和ATP的狀況如何?`;
                                 }
                                 break;
-                            case "so_gating_item":
+                            case "so_gating_item_form":
                                 soNumber = context.activity.value.so_number || "未提供訊息";
-                                query = `查詢SO:${soNumber}最晚交期是那個item?`;
+                                query = `請幫我查詢SO:${soNumber}最晚交期是那個item?`;
                                 break;
                             case "single_item_form":
                                 shipmentType = context.activity.value.shipment_type;
@@ -261,7 +261,7 @@ class TeamsBot extends ActivityHandler {
                                 postalCode = context.activity.value.postal_code;
                                 city = context.activity.value.city;
                                 country = context.activity.value.country;
-                                query = `計算運費: ${materialQuantity} 寄到郵遞區號為 ${postalCode} 的 ${city} ${country}，請問這樣 ${shipmentType} 的運費多少?`;
+                                query = `請幫我計算運費: ${materialQuantity} 寄到郵遞區號為 ${postalCode} 的 ${city} ${country}，請問這樣 ${shipmentType} 的運費多少?`;
                                 break;
                             case "btos_form":
                                 shipmentType = context.activity.value.shipment_type;
