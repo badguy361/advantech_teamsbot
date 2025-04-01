@@ -5,14 +5,14 @@
     "body": [
         {
             "type": "TextBlock",
-            "text": "提問範例: 查詢AIMB-505G2-00A1E在TWH1的物料主檔資訊",
+            "text": "提問範例1: 查詢ADAM-4520-F在TWH1的L/T及ATP\n提問範例2: 顧客想在20240601訂購ADAM-4520-F,數量為500個,L/T和ATP的狀況如何?",
             "wrap": true
         },
         {
             "type": "Input.Text",
             "id": "material",
             "isRequired": true,
-            "value": "AIMB-505G2-00A1E",
+            "value": "ADAM-4520-F",
             "placeholder": "請輸入料號",
             "errorMessage": "請輸入料號"
         },
@@ -23,6 +23,22 @@
             "value": "TWH1",
             "placeholder": "請輸入廠別",
             "errorMessage": "請輸入廠別"
+        },
+        {
+            "type": "Input.Text",
+            "id": "quantity",
+            "isRequired": true,
+            "value": "500",
+            "placeholder": "請輸入需求數量",
+            "errorMessage": "請輸入需求數量"
+        },
+        {
+            "type": "Input.Date",
+            "id": "date",
+            "isRequired": true,
+            "value": "2024-06-01",
+            "placeholder": "請輸入需求日期",
+            "errorMessage": "請輸入需求日期"
         }
     ],
     "actions": [
@@ -31,7 +47,7 @@
             "title": "送出",
             "data": {
                 "action": "submit_query",
-                "source": "master_data_form"
+                "source": "lt_atp_form"
             }
         }
     ]

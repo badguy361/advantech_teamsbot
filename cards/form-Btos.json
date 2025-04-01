@@ -1,0 +1,80 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "提問範例: 計算運費: 母階物料PPC-6171C-BTO * 3 而以下的物料階為他的子階PPC-6171C-RTAE * 10 pcs 寄到郵遞區號為 : 050019 的 Almaty KZ 請問這樣DHL的運費多少?",
+            "wrap": true
+        },
+        {
+            "type": "Input.ChoiceSet",
+            "id": "supplier",
+            "placeholder": "請選擇供應商",
+            "isRequired": true,
+            "value": "DHL",
+            "errorMessage": "請選擇供應商",
+            "choices": [
+                {
+                    "title": "DHL",
+                    "value": "DHL"
+                },
+                {
+                    "title": "FedEx",
+                    "value": "FedEx"
+                }
+            ]
+        },
+        {
+            "type": "Input.Text",
+            "id": "material_quantity",
+            "placeholder": "料號&數量",
+            "isRequired": true,
+            "value": "PPC-6171C-RTAE * 10 pcs",
+            "errorMessage": "請輸入料號&數量"
+        },
+        {
+            "type": "Input.Text",
+            "id": "parent_material",
+            "placeholder": "母階料號",
+            "isRequired": true,
+            "value": "PPC-6171C-BTO * 3",
+            "errorMessage": "請輸入母階料號"
+        },
+        {
+            "type": "Input.Text",
+            "id": "postal_code",
+            "placeholder": "郵遞區號",
+            "isRequired": true,
+            "value": "050019",
+            "errorMessage": "請輸入郵遞區號"
+        },
+        {
+            "type": "Input.Text",
+            "id": "city",
+            "placeholder": "城市",
+            "isRequired": true,
+            "value": "Almaty",
+            "errorMessage": "請輸入城市"
+        },
+        {
+            "type": "Input.Text",
+            "id": "country",
+            "placeholder": "國家",
+            "isRequired": true,
+            "value": "KZ",
+            "errorMessage": "請輸入國家"
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "送出",
+            "data": {
+                "action": "submit_query",
+                "source": "btos_form"
+            }
+        }
+    ]
+}

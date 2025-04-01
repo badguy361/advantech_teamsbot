@@ -1,0 +1,30 @@
+{
+    "type": "AdaptiveCard",
+    "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "提問範例: 查詢SO:1205490最晚交期是那個item?",
+            "wrap": true
+        },
+        {
+            "type": "Input.Text",
+            "id": "so_number",
+            "isRequired": true,
+            "value": "1205490",
+            "placeholder": "請輸入SO號碼",
+            "errorMessage": "請輸入SO號碼"
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "送出",
+            "data": {
+                "action": "submit_query",
+                "source": "so_gating_item_form"
+            }
+        }
+    ]
+}

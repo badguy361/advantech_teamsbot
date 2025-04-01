@@ -5,7 +5,7 @@
     "body": [
         {
             "type": "TextBlock",
-            "text": "提問範例: 查詢AIMB-505G2-00A1E在TWH1的物料主檔資訊",
+            "text": "提問範例: 查詢AIMB-505G2-00A1E的PM、SCM、Planner",
             "wrap": true
         },
         {
@@ -15,14 +15,6 @@
             "value": "AIMB-505G2-00A1E",
             "placeholder": "請輸入料號",
             "errorMessage": "請輸入料號"
-        },
-        {
-            "type": "Input.Text",
-            "id": "plant",
-            "isRequired": true,
-            "value": "TWH1",
-            "placeholder": "請輸入廠別",
-            "errorMessage": "請輸入廠別"
         }
     ],
     "actions": [
@@ -31,7 +23,7 @@
             "title": "送出",
             "data": {
                 "action": "submit_query",
-                "source": "master_data_form"
+                "source": "pm_scm_planner_form"
             }
         }
     ]

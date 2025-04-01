@@ -5,16 +5,23 @@
     "body": [
         {
             "type": "TextBlock",
-            "text": "請選擇一個子項目：",
+            "text": "Shipment Rate - 請選擇一個子項目：",
             "wrap": true
         }
     ],
     "actions": [
         {
             "type": "Action.Submit",
-            "title": "L/T,ATP",
+            "title": "Single Item",
             "data": {
-                "action": "lt_atp_form"
+                "action": "single_item_form"
+            }
+        },
+        {
+            "type": "Action.Submit",
+            "title": "BTOS",
+            "data": {
+                "action": "btos_form"
             }
         }
     ]
