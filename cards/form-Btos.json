@@ -9,6 +9,11 @@
             "wrap": true
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入供應商",
+            "wrap": true
+        },
+        {
             "type": "Input.ChoiceSet",
             "id": "supplier",
             "placeholder": "請選擇供應商",
@@ -27,41 +32,66 @@
             ]
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入料號&數量",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "material_quantity",
-            "placeholder": "料號&數量",
+            "placeholder": "請輸入料號&數量",
             "isRequired": true,
             "value": "PPC-6171C-RTAE * 10 pcs",
             "errorMessage": "請輸入料號&數量"
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入母階料號",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "parent_material",
-            "placeholder": "母階料號",
+            "placeholder": "請輸入母階料號",
             "isRequired": true,
             "value": "PPC-6171C-BTO * 3",
             "errorMessage": "請輸入母階料號"
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入郵遞區號",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "postal_code",
-            "placeholder": "郵遞區號",
+            "placeholder": "請輸入郵遞區號",
             "isRequired": true,
             "value": "050019",
             "errorMessage": "請輸入郵遞區號"
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入城市",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "city",
-            "placeholder": "城市",
+            "placeholder": "請輸入城市",
             "isRequired": true,
             "value": "Almaty",
             "errorMessage": "請輸入城市"
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入國家",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "country",
-            "placeholder": "國家",
+            "placeholder": "請輸入國家",
             "isRequired": true,
             "value": "KZ",
             "errorMessage": "請輸入國家"

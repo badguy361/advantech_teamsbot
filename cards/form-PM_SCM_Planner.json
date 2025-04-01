@@ -9,6 +9,11 @@
             "wrap": true
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入料號",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "material",
             "isRequired": true,

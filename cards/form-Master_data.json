@@ -9,12 +9,22 @@
             "wrap": true
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入料號",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "material",
             "isRequired": true,
             "value": "AIMB-505G2-00A1E",
             "placeholder": "請輸入料號",
             "errorMessage": "請輸入料號"
+        },
+        {
+            "type": "TextBlock",
+            "text": "請輸入廠別",
+            "wrap": true
         },
         {
             "type": "Input.Text",

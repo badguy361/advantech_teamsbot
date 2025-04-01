@@ -9,6 +9,11 @@
             "wrap": true
         },
         {
+            "type": "TextBlock",
+            "text": "請輸入SO號碼",
+            "wrap": true
+        },
+        {
             "type": "Input.Text",
             "id": "so_number",
             "isRequired": true,
