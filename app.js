@@ -113,7 +113,10 @@ class TeamsBot extends ActivityHandler {
             const userId = context.activity.from.id;
             const database = DBClient.database(cosmosDBDatabaseId);
             const container = database.container(cosmosDBContainerId);
+            const conversationReference = TurnContext.getConversationReference(context.activity);
+            conversationReferences[userId] = conversationReference;
             const { resource: user } = await container.item(userId).read();
+
             if (text === 'subscribe' || text === 'sub') {
                 try {
                     // Clone subscription card
@@ -147,13 +150,13 @@ class TeamsBot extends ActivityHandler {
 
                 // Collect all selected services
                 if (context.activity.value.SCM_bot === 'true') {
-                    selectedServices.push('SCM bot');
+                    selectedServices.push('SCM_bot');
                 }
-                if (context.activity.value.pull_in === 'true') {
-                    selectedServices.push('Pull-in Agent');
+                if (context.activity.value.Pull_in_agent === 'true') {
+                    selectedServices.push('Pull_in_agent');
                 }
-                if (context.activity.value.LTB_customer === 'true') {
-                    selectedServices.push('LTB customer Agent');
+                if (context.activity.value.LTB_customer_agent === 'true') {
+                    selectedServices.push('LTB_customer_agent');
                 }
 
                 // Save all subscriptions
@@ -176,6 +179,17 @@ class TeamsBot extends ActivityHandler {
                 await context.sendActivity({ attachments: [CardFactory.adaptiveCard(cards.menu.default)] });
             } else if (context.activity.value && context.activity.value.action != 'confirmSubscription') {
                 const action = context.activity.value.action;
+                let query;
+                let material;
+                let plant;
+                let quantity;
+                let date;
+                let soNumber;
+                let supplier;
+                let materialQuantity;
+                let postalCode;
+                let city;
+                let country;
 
                 switch (action) {
                     case "basic_data":
@@ -212,75 +226,70 @@ class TeamsBot extends ActivityHandler {
 
                     case "submit_query":
                         const source = context.activity.value.source;
-                        let query;
-                        let material;
-                        let plant;
-                        let quantity;
-                        let date;
-                        let soNumber;
-                        let shipmentType;
-                        let supplier;
-                        let materialQuantity;
-                        let postalCode;
-                        let city;
-                        let country;
-
                         switch (source) {
+                            // Basic Data
                             case "master_data_form":
-                                material = context.activity.value.material || "AIMB-505G2-00A1E";
-                                plant = context.activity.value.plant || "TWH1";
+                                material = context.activity.value.material;
+                                plant = context.activity.value.plant;
                                 query = `請幫我查詢${material}在${plant}的物料主檔資訊`;
                                 break;
                             case "pm_scm_planner_form":
-                                material = context.activity.value.material || "AIMB-505G2-00A1E";
+                                material = context.activity.value.material;
                                 query = `請幫我查詢${material}的PM、SCM、Planner`;
                                 break;
                             case "hts_coo_eccn_form":
-                                material = context.activity.value.material || "AIMB-505G2-00A1E";
+                                material = context.activity.value.material;
                                 query = `請幫我查詢${material}的HTS、COO、ECCN`;
                                 break;
+
+                            // LT & ATP
                             case "lt_atp_form":
-                                material = context.activity.value.material || "AIMB-505G2-00A1E";
+                                material = context.activity.value.material;
                                 plant = context.activity.value.plant;
-                                quantity = context.activity.value.quantity;
-                                date = context.activity.value.date || new Date().toISOString().split('T')[0];
-                                if (!quantity) {
+                                quantity = parseInt(context.activity.value.quantity,10);
+                                date = context.activity.value.date;
+                                if (quantity === null || quantity === undefined || quantity === "") {
                                     query = `請幫我查詢${material}在${plant}的L/T,ATP，日期${date}`;
                                 } else {
                                     query = `顧客想在${date}訂購${material}，數量為${quantity}個,L/T和ATP的狀況如何?`;
                                 }
                                 break;
+
+                            // SO Gating Item
                             case "so_gating_item_form":
-                                soNumber = context.activity.value.so_number || "未提供訊息";
+                                soNumber = context.activity.value.so_number;
                                 query = `請幫我查詢SO:${soNumber}最晚交期是那個item?`;
                                 break;
+
+                            // Shipment Rate
                             case "single_item_form":
-                                shipmentType = context.activity.value.shipment_type;
                                 supplier = context.activity.value.supplier;
                                 materialQuantity = context.activity.value.material_quantity;
                                 postalCode = context.activity.value.postal_code;
                                 city = context.activity.value.city;
                                 country = context.activity.value.country;
-                                query = `請幫我計算運費: ${materialQuantity} 寄到郵遞區號為 ${postalCode} 的 ${city} ${country}，請問這樣 ${shipmentType} 的運費多少?`;
+                                query = `請幫我計算運費: ${materialQuantity} 寄到郵遞區號為 ${postalCode} 的 ${city} ${country}，請問這樣 ${supplier} 的運費多少?`;
                                 break;
                             case "btos_form":
-                                shipmentType = context.activity.value.shipment_type;
                                 supplier = context.activity.value.supplier;
                                 materialQuantity = context.activity.value.material_quantity;
                                 parentMaterial = context.activity.value.parent_material;
-                                postalCode = context.activity.value.postal_code;
+                                postalCode = parseInt(context.activity.value.postal_code,10);
                                 city = context.activity.value.city;
                                 country = context.activity.value.country;
-                                query = `計算運費: ${parentMaterial} 而以下的物料階為他的子階${materialQuantity} 寄到郵遞區號為 ${postalCode} 的 ${city} ${country}，請問這樣 ${shipmentType} 的運費多少?`;
+                                query = `請幫我計算運費: ${parentMaterial} 而以下的物料階為他的子階${materialQuantity} 寄到郵遞區號為 ${postalCode} 的 ${city} ${country}，請問這樣 ${supplier} 的運費多少?`;
                                 break;
                         }
                         await context.sendActivity({text: query});
-                        await handleChatMessageWithTyping(context, query, config, MicrosoftAppId, conversationReferences, adapter);
+
+                        setImmediate(async () => {
+                            await handleChatMessageWithTyping(userId, query, config, MicrosoftAppId, conversationReferences, adapter);
+                        });
                         break;
                 }
             } else {
-                if (user && user.subscriptions && user.subscriptions.includes('SCM bot')) {
-                    await handleChatMessageWithTyping(context, text, config, MicrosoftAppId, conversationReferences, adapter);
+                if (user && user.subscriptions && user.subscriptions.includes('SCM_bot')) {
+                    await handleChatMessageWithTyping(userId, text, config, MicrosoftAppId, conversationReferences, adapter);
                 } else {
                     await context.sendActivity('您尚未訂閱任何Bot服務，可透過關鍵字 subscribe 訂閱。/ \
                         You have not subscribed to any Bot services, you can subscribe through the keyword subscribe.');
@@ -310,7 +319,7 @@ class TeamsBot extends ActivityHandler {
 /**
  * Handles a chat message, including sending typing indicators and processing the message with the SCMChatService.
  *
- * @param {TurnContext} context The TurnContext for the current turn.
+ * @param {string} userId The user ID.
  * @param {string} text The text of the user's message.
  * @param {object} config The configuration object for the SCMChatService.
  * @param {string} MicrosoftAppId The Microsoft App ID.
@@ -318,16 +327,16 @@ class TeamsBot extends ActivityHandler {
  * @param {object} adapter The bot adapter.
  * @returns {Promise<void>} A promise that resolves when the message has been handled.
  */
-async function handleChatMessageWithTyping(context, text, config, MicrosoftAppId, conversationReferences, adapter) {
+async function handleChatMessageWithTyping(userId, text, config, MicrosoftAppId, conversationReferences, adapter) {
     let typingInterval;
 
     try {
-        // Send typing animation immediately
-        await context.sendActivity({ type: ActivityTypes.Typing });
+        // Get conversation reference
+        const conversationReference = conversationReferences[userId];
 
-        // Save conversation reference
-        const conversationReference = TurnContext.getConversationReference(context.activity);
-        conversationReferences[context.activity.from.id] = conversationReference;
+        if (!conversationReference) {
+            throw new Error("無法找到對應的對話參考，請確保 userId 正確儲存。");
+        }
 
         // Send typing animation at intervals
         typingInterval = setInterval(async () => {
@@ -347,7 +356,10 @@ async function handleChatMessageWithTyping(context, text, config, MicrosoftAppId
 
     } catch (error) {
         console.error('API 調用錯誤:', error);
-        await context.sendActivity('處理您的請求時發生錯誤。');
+        const conversationReference = conversationReferences[userId];
+        await adapter.continueConversationAsync(MicrosoftAppId, conversationReference, async (turnContext) => {
+            await turnContext.sendActivity('查詢失敗，請稍後再試。');
+        });
 
     } finally {
         if (typingInterval) {
